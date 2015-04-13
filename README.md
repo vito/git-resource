@@ -37,7 +37,7 @@ made after the given version are returned. If no version is given, the ref
 for `HEAD` is returned.
 
 
-### `in`: Clone the repository, at the given ref.
+### `get`: Clone the repository, at the given ref.
 
 Clones the repository to the destination, and locks it down to a given ref.
 Returns the resulting ref as the version.
@@ -56,7 +56,7 @@ Submodules are initialized and updated recursively.
   submodules are fetched.
 
 
-### `out`: Push to a repository.
+### `put`: Push to a repository.
 
 Push a repository to the source's URI and branch. All tags are also pushed
 to the source.

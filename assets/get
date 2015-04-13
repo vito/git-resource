@@ -1,38 +1,23 @@
 #!/bin/sh
 # vim: set ft=sh
 
-set -e
-
-exec 3>&1 # make stdout available as fd 3 for the result
-exec 1>&2 # redirect all output to stderr for logging
+set -e -u
 
 source $(dirname $0)/common.sh
-
-destination=$1
-
-if [ -z "$destination" ]; then
-  echo "usage: $0 <path/to/destination>" >&2
-  exit 1
-fi
 
 # for jq
 PATH=/usr/local/bin:$PATH
 
-payload=$(mktemp $TMPDIR/git-resource-request.XXXXXX)
+load_pubkey $REQUEST
 
-cat > $payload <&0
-
-load_pubkey $payload
-
-uri=$(jq -r '.source.uri // ""' < $payload)
-branch=$(jq -r '.source.branch // ""' < $payload)
-ref=$(jq -r '.version.ref // "HEAD"' < $payload)
-fetch=$(jq -r '(.params.fetch // [])[]' < $payload)
-submodules=$(jq -r '(.params.submodules // "all")' < $payload)
+uri=$(jq -r '.source.uri // ""' < $REQUEST)
+branch=$(jq -r '.source.branch // ""' < $REQUEST)
+ref=$(jq -r '.version.ref // "HEAD"' < $REQUEST)
+fetch=$(jq -r '(.params.fetch // [])[]' < $REQUEST)
+submodules=$(jq -r '(.params.submodules // "all")' < $REQUEST)
 
 if [ -z "$uri" ]; then
-  echo "invalid payload (missing uri):" >&2
-  cat $payload >&2
+  echo "invalid source configuration; missing uri" >&2
   exit 1
 fi
 
@@ -41,9 +26,9 @@ if [ -n "$branch" ]; then
   branchflag="--branch $branch"
 fi
 
-git clone $uri $branchflag $destination
+git clone $uri $branchflag $DESTINATION
 
-cd $destination
+cd $DESTINATION
 
 git checkout -q $ref
 git log -1 --oneline
@@ -66,4 +51,4 @@ done
 jq -n "{
   version: {ref: $(git rev-parse HEAD | jq -R .)},
   metadata: $(git_metadata)
-}" >&3
+}" > $RESPONSE

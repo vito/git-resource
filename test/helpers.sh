@@ -75,7 +75,7 @@ check_uri() {
     source: {
       uri: $(echo $1 | jq -R .)
     }
-  }" | ${resource_dir}/check | tee /dev/stderr
+  }" | request_response ${resource_dir}/check | tee /dev/stderr
 }
 
 check_uri_ignoring() {
@@ -88,7 +88,7 @@ check_uri_ignoring() {
       uri: $(echo $uri | jq -R .),
       ignore_paths: $(echo "$@" | jq -R '. | split(" ")')
     }
-  }" | ${resource_dir}/check | tee /dev/stderr
+  }" | request_response ${resource_dir}/check | tee /dev/stderr
 }
 
 check_uri_paths() {
@@ -101,7 +101,7 @@ check_uri_paths() {
       uri: $(echo $uri | jq -R .),
       paths: $(echo "$@" | jq -R '. | split(" ")')
     }
-  }" | ${resource_dir}/check | tee /dev/stderr
+  }" | request_response ${resource_dir}/check | tee /dev/stderr
 }
 
 check_uri_paths_ignoring() {
@@ -116,7 +116,7 @@ check_uri_paths_ignoring() {
       paths: [$(echo $paths | jq -R .)],
       ignore_paths: $(echo "$@" | jq -R '. | split(" ")')
     }
-  }" | ${resource_dir}/check | tee /dev/stderr
+  }" | request_response ${resource_dir}/check | tee /dev/stderr
 }
 
 check_uri_from() {
@@ -127,7 +127,7 @@ check_uri_from() {
     version: {
       ref: $(echo $2 | jq -R .)
     }
-  }" | ${resource_dir}/check | tee /dev/stderr
+  }" | request_response ${resource_dir}/check | tee /dev/stderr
 }
 
 check_uri_from_ignoring() {
@@ -144,7 +144,7 @@ check_uri_from_ignoring() {
     version: {
       ref: $(echo $ref | jq -R .)
     }
-  }" | ${resource_dir}/check | tee /dev/stderr
+  }" | request_response ${resource_dir}/check | tee /dev/stderr
 }
 
 check_uri_from_paths() {
@@ -161,7 +161,7 @@ check_uri_from_paths() {
     version: {
       ref: $(echo $ref | jq -R .)
     }
-  }" | ${resource_dir}/check | tee /dev/stderr
+  }" | request_response ${resource_dir}/check | tee /dev/stderr
 }
 
 check_uri_from_paths_ignoring() {
@@ -180,7 +180,7 @@ check_uri_from_paths_ignoring() {
     version: {
       ref: $(echo $ref | jq -R .)
     }
-  }" | ${resource_dir}/check | tee /dev/stderr
+  }" | request_response ${resource_dir}/check | tee /dev/stderr
 }
 
 get_uri() {
@@ -188,7 +188,7 @@ get_uri() {
     source: {
       uri: $(echo $1 | jq -R .)
     }
-  }" | ${resource_dir}/in "$2" | tee /dev/stderr
+  }" | request_response DESTINATION="$2" ${resource_dir}/get | tee /dev/stderr
 }
 
 get_uri_at_ref() {
@@ -199,7 +199,7 @@ get_uri_at_ref() {
     version: {
       ref: $(echo $2 | jq -R .)
     }
-  }" | ${resource_dir}/in "$3" | tee /dev/stderr
+  }" | request_response DESTINATION="$3" ${resource_dir}/get | tee /dev/stderr
 }
 
 get_uri_at_branch() {
@@ -208,7 +208,7 @@ get_uri_at_branch() {
       uri: $(echo $1 | jq -R .),
       branch: $(echo $2 | jq -R .)
     }
-  }" | ${resource_dir}/in "$3" | tee /dev/stderr
+  }" | request_response DESTINATION="$3" ${resource_dir}/get | tee /dev/stderr
 }
 
 put_uri() {
@@ -220,7 +220,7 @@ put_uri() {
     params: {
       repository: $(echo $3 | jq -R .)
     }
-  }" | ${resource_dir}/out "$2" | tee /dev/stderr
+  }" | request_response SOURCE=$2 ${resource_dir}/put | tee /dev/stderr
 }
 
 put_uri_with_rebase() {
@@ -233,7 +233,7 @@ put_uri_with_rebase() {
       repository: $(echo $3 | jq -R .),
       rebase: true
     }
-  }" | ${resource_dir}/out "$2" | tee /dev/stderr
+  }" | request_response SOURCE=$2 ${resource_dir}/put | tee /dev/stderr
 }
 
 put_uri_with_tag() {
@@ -246,7 +246,7 @@ put_uri_with_tag() {
       tag: $(echo $3 | jq -R .),
       repository: $(echo $4 | jq -R .)
     }
-  }" | ${resource_dir}/out "$2" | tee /dev/stderr
+  }" | request_response SOURCE=$2 ${resource_dir}/put | tee /dev/stderr
 }
 
 put_uri_with_tag_and_prefix() {
@@ -260,7 +260,7 @@ put_uri_with_tag_and_prefix() {
       tag_prefix: $(echo $4 | jq -R .),
       repository: $(echo $5 | jq -R .)
     }
-  }" | ${resource_dir}/out "$2" | tee /dev/stderr
+  }" | request_response SOURCE=$2 ${resource_dir}/put | tee /dev/stderr
 }
 
 put_uri_with_rebase_with_tag() {
@@ -274,10 +274,13 @@ put_uri_with_rebase_with_tag() {
       repository: $(echo $4 | jq -R .),
       rebase: true
     }
-  }" | ${resource_dir}/out "$2" | tee /dev/stderr
+  }" | request_response SOURCE=$2 ${resource_dir}/put | tee /dev/stderr
 }
 
 put_uri_with_rebase_with_tag_and_prefix() {
+  local request=$(mktemp /tmp/put.XXXXXX)
+  local response=$(mktemp /tmp/put-response.XXXXXX)
+
   jq -n "{
     source: {
       uri: $(echo $1 | jq -R .),
@@ -289,5 +292,16 @@ put_uri_with_rebase_with_tag_and_prefix() {
       repository: $(echo $5 | jq -R .),
       rebase: true
     }
-  }" | ${resource_dir}/out "$2" | tee /dev/stderr
+  }" | request_response SOURCE=$2 ${resource_dir}/put | tee /dev/stderr
+}
+
+request_response() {
+  local request=$(mktemp /tmp/request.XXXXXX)
+  local response=$(mktemp /tmp/response.XXXXXX)
+
+  cat > $request <&0
+
+  eval REQUEST=$request RESPONSE=$response "$@" >&2
+
+  cat $response
 }
